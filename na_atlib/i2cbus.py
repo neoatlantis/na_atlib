@@ -20,10 +20,13 @@ class I2CBus:
     def write(self, data):
         return self.bus.i2c_rdwr(i2c_msg.write(self.addr, list(data)))
 
-    def read(self, n):
+    def read(self, n, rstrip=False):
         msg = i2c_msg.read(self.addr, n)
         self.bus.i2c_rdwr(msg)
-        return bytes(msg)
+        msg = bytes(msg)
+        if rstrip:
+            msg = msg.rstrip(b'\xff')
+        return msg
 
     def wake(self):
         if self.wake_method == "gpio":

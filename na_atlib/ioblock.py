@@ -1,26 +1,19 @@
 #!/usr/bin/env python3
 
+from .errors import ATIOError
+
 class IOBlock:
 
     # (count, data, crc16) as defined in Section 8.1
 
-    def __init__(self, payload: bytes, acknowledged_count=0):
+    def __init__(self, payload: bytes):
         assert type(payload) is bytes
         self.payload = bytes(list(payload))
-        self._acknowledged_count = acknowledged_count
 
     @property
-    def sending_count(self):
+    def count(self):
         # The count property in IO Block, if this block was to be sent
-        # Notice this is NOT acknowledged bytes count, when this block was
-        # received from remote!
         return 3 + len(self.payload)
-
-    @property
-    def acknowledged_count(self):
-        # Bytes received by device. Device answers in same IO block format.
-        return self._acknowledged_count
-
 
     def _at_crc(self, data: bytes) -> bytes:
         """
@@ -44,7 +37,7 @@ class IOBlock:
         return crc_le
 
     def __bytes__(self):
-        crcdata = bytes([self.sending_count]) + self.payload
+        crcdata = bytes([self.count]) + self.payload
         crc16 = self._at_crc(crcdata)
         return crcdata + crc16
 
@@ -52,17 +45,21 @@ class IOBlock:
         ackcount = block[0]
         crc16 = bytes(block[-2:])
 
-        if ackcount != self.sending_count:
-            raise Error("bytes-incomplete-received")
+        if block[0] == 4:
+            errblock = block.rstrip(b'\xff')
+            if (
+                len(errblock) == 4 and \
+                errblock[-2:] == self._at_crc(errblock[:-2])
+            ):
+                # we got an error block from AT device
+                errcode = errblock[1]
+                raise ATIOError(atsha204_errcode=errcode)
 
         if crc16 != self._at_crc(block[:-2]):
-            raise Error("crc16-error")
+            raise Exception("crc16-error")
 
-        return IOBlock(block[1:-2], ackcount)
+        return IOBlock(block[1:-2])
 
     def __repr__(self):
-        if self.acknowledged_count > 0:
-            return """[ %2d bytes << RECV : %s ]""" % (
-                self.acknowledged_count, self.payload.hex())
-        return """[ SEND >> %2d bytes : %s ]""" % (
-            self.sending_count, self.payload.hex())
+        return """< IOBlock :: %2d B (+3B overhead) : %s >""" % (
+            self.count-3, self.payload.hex())

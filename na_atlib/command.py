@@ -13,10 +13,6 @@ class ResponsePacket:
     def payload(self):
         return self._block.payload
 
-    @property
-    def acknowledged_count(self):
-        return self._block.acknowledged_count
-
     def __repr__(self):
         return "[ Type: ANS - %s ]" % repr(self._block)
 
@@ -70,7 +66,7 @@ class CommandPacket:
 
     @property
     def response_size(self):
-        return self._io_block.sending_count
+        return self._response_size + 3
 
     def parse_answer(self, block):
         return ResponsePacket(self._io_block.parse_answer(block))
