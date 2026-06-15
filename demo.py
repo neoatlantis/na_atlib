@@ -2,6 +2,7 @@
 
 from na_atlib.ATSHA204 import *
 from na_atlib.i2cbus import I2CBus
+from na_atlib.help_sha256 import sha256_pad
 import time
 
 
@@ -9,16 +10,21 @@ import time
 with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
     bus.wake()
 
-    cmd = CMD_RANDOM(mode=1)
-    print(repr(cmd))
+    def call_command(name, cmd):
+        print("** %s" % name)
 
-    print(bytes(cmd).hex())
-    cmdbytes = bytes(cmd)
-    bus.write(cmdbytes)
+        bus.write(bytes(cmd))
+        time.sleep(0.1)
+        reply = bus.read(cmd.response_size)
+        print(reply.hex())
+        print(repr(cmd.parse_answer(reply)))
 
-    time.sleep(0.1)
+    call_command("Random", CMD_RANDOM(mode=1))
 
-    reply = bus.read(cmd.response_size)
-    
-    print(reply.hex())
-    print(repr(cmd.parse_answer(reply)))
+    # Now do SHA256 test
+
+    test = b'abc'
+    padded_test = sha256_pad(test)
+
+    call_command("SHA", CMD_SHA(mode=0))
+    call_command("SHA", CMD_SHA(mode=1, data=padded_test))

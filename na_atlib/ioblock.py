@@ -53,7 +53,8 @@ class IOBlock:
             ):
                 # we got an error block from AT device
                 errcode = errblock[1]
-                raise ATIOError(atsha204_errcode=errcode)
+                if 0 != errcode:
+                    raise ATIOError(atsha204_errcode=errcode)
 
         if crc16 != self._at_crc(block[:-2]):
             raise Exception("crc16-error")
