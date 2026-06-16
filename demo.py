@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-from na_atlib.ATSHA204 import *
+from na_atlib.ATSHA204 import DEFAULT_I2C_ADDR as ATSHA204_DEFAULT_I2C_ADDR
+from na_atlib.ATSHA204.commands import *
 from na_atlib.i2cbus import I2CBus
 from na_atlib.help_sha256 import sha256_pad
 import time
