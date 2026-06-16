@@ -20,6 +20,9 @@ class I2CBus:
     def write(self, data):
         return self.bus.i2c_rdwr(i2c_msg.write(self.addr, list(data)))
 
+    def idle(self):
+        return self.write(b'\x02')
+
     def read(self, n, rstrip=False):
         msg = i2c_msg.read(self.addr, n)
         self.bus.i2c_rdwr(msg)
