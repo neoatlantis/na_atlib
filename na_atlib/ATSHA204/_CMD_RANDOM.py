@@ -9,6 +9,8 @@ class CMD_RANDOM(CommandPacket):
         UPDATE_SEED    = 1
 
     def __init__(self, mode: Mode):
+        assert type(mode) is CMD_RANDOM.Mode
+        
         CommandPacket.__init__(self,
             0x1B,
             mode & 0xFF, (0x00, 0x00),

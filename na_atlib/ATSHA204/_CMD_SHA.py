@@ -9,6 +9,8 @@ class CMD_SHA(CommandPacket):
         COMPUTE = 1
 
     def __init__(self, mode: Mode, data=None):
+        assert type(mode) is CMD_SHA.Mode
+        
         if mode & 1:
             assert type(data) is bytes and len(data) == 64
         else:

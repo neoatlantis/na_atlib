@@ -14,6 +14,9 @@ class CMD_READ(CommandPacket):
         BYTES_32 = 1
 
     def __init__(self, zone: Zone, address, read_bytes: ReadBytes=0):
+        assert type(zone)       is CMD_READ.Zone
+        assert type(read_bytes) is CMD_READ.ReadBytes
+        
         param1 = (zone & 0b11) | ((read_bytes & 0b01) << 7)
         param2 = (address & 0xFF, (address & 0xFF00) >> 8)
         CommandPacket.__init__(self,
