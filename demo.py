@@ -26,15 +26,21 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
             print(repr(parsed))
         return parsed.payload
 
-    call_command("Random", CMD_RANDOM(mode=1))
+    call_command("Random", CMD_RANDOM(mode=CMD_RANDOM.Mode.NO_UPDATE_SEED))
 
     # Now do SHA256 test
 
     test = b'abc'
     padded_test = sha256_pad(test)
 
-    call_command("SHA", CMD_SHA(mode=0))
-    hashed = call_command("SHA", CMD_SHA(mode=1, data=padded_test))
+    call_command(
+        "SHA",
+        CMD_SHA(mode=CMD_SHA.Mode.INIT)
+    )
+    hashed = call_command(
+        "SHA",
+        CMD_SHA(mode=CMD_SHA.Mode.COMPUTE, data=padded_test)
+    )
     assert hashed == bytes.fromhex('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad')
 
     # Do some reads
@@ -73,9 +79,9 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
         cfgdata = call_command(
             "READ",
             CMD_READ(
-                zone=CMD_READ.ZONE_CONFIG, 
+                zone=CMD_READ.Zone.CONFIG, 
                 address=i,
-                read_bytes=CMD_READ.READ_BYTES_4
+                read_bytes=CMD_READ.ReadBytes.BYTES_4
             ),
             silence=True
         )
