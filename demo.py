@@ -2,6 +2,7 @@
 
 from na_atlib.ATSHA204 import DEFAULT_I2C_ADDR as ATSHA204_DEFAULT_I2C_ADDR
 from na_atlib.ATSHA204.commands import *
+from na_atlib.ATSHA204.routines.read_config import ConfigZoneReader
 from na_atlib.i2cbus import I2CBus
 from na_atlib.help_sha256 import sha256_pad
 import time
@@ -46,6 +47,7 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
     # Do some reads
     print("** CONFIG ZONE")
 
+    config_zone = ConfigZoneReader(bus).config
     names = [
         "|                            SN<0:3>                      |",
         "|                            RevNum                       |",
@@ -69,22 +71,8 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
         "| LastKeyUse 8 ............................ LastKeyUse 11 |",
         "| LastKeyUse 12 ........................... LastKeyUse 15 |",
         "| UserExtra |    Selector   | LockValue |    LockConfig   |"
-
     ]
     for i in range(0, len(names)):
-        if i % 3:
-            bus.idle()
-            bus.wake()
-
-        cfgdata = call_command(
-            "READ",
-            CMD_READ(
-                zone=CMD_READ.Zone.CONFIG, 
-                address=i,
-                read_bytes=CMD_READ.ReadBytes.BYTES_4
-            ),
-            silence=True
-        )
-        h = cfgdata.hex()
-        print(names[i].rjust(60, " "), h[:2], h[2:4], h[4:6], h[6:8])
+        h = config_zone[4*i:4*i+4].hex()
+        print("0x%02X" % i, names[i].rjust(60, " "), h[:2], h[2:4], h[4:6], h[6:8])
 

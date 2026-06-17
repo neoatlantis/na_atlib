@@ -33,7 +33,8 @@ class CMD_CHECKMAC(CommandPacket):
 
         clientchal,
         clientresp,
-        otherdata,
+        otherdata,  # otherdata from the other's device, must be constructed
+                    # as in datasheet Table 8-10
     ):
         assert type(mode_OTP_select)        is CMD_CHECKMAC.OTPSelect
         assert type(mode_source_flag)       is CMD_CHECKMAC.SourceFlag
