@@ -47,7 +47,8 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
     # Do some reads
     print("** CONFIG ZONE")
 
-    config_zone = ConfigZoneReader(bus).config
+    config_zone_reader = ConfigZoneReader(bus)
+    config_zone = config_zone_reader.config
     names = [
         "|                            SN<0:3>                      |",
         "|                            RevNum                       |",
@@ -76,3 +77,6 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
         h = config_zone[4*i:4*i+4].hex()
         print("0x%02X" % i, names[i].rjust(60, " "), h[:2], h[2:4], h[4:6], h[6:8])
 
+    print("Device SN: %s" % config_zone_reader.sn.hex())
+    print("Config zone locked: %s" % ("Yes" if config_zone_reader.config_locked else "No"))
+    print("Data & OTP zone locked: %s" % ("Yes" if config_zone_reader.value_locked else "No"))

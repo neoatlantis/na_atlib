@@ -32,16 +32,7 @@ class ConfigZoneReader:
 
     def __init__(self, i2cbus):
         self.bus = i2cbus
-        self.config = b''.join([
-            self._read_at(0x00),
-            self._read_at(0x08),
-            self._read_at(0x10, True),
-            self._read_at(0x11, True),
-            self._read_at(0x12, True),
-            self._read_at(0x13, True),
-            self._read_at(0x14, True),
-            self._read_at(0x15, True),
-        ])
+        self.refresh()
 
     def _read_at(self, addr, short=False):
         cmd = CMD_READ(
@@ -57,3 +48,29 @@ class ConfigZoneReader:
         reply = self.bus.read(cmd.response_size)
         parsed = cmd.parse_answer(reply)
         return parsed.payload
+
+    def refresh(self):
+        self.config = b''.join([
+            self._read_at(0x00),
+            self._read_at(0x08),
+            self._read_at(0x10, True),
+            self._read_at(0x11, True),
+            self._read_at(0x12, True),
+            self._read_at(0x13, True),
+            self._read_at(0x14, True),
+            self._read_at(0x15, True),
+        ])
+
+    @property
+    def config_locked(self):
+        return self.config[87] != 0x55
+
+    @property
+    def value_locked(self):
+        return self.config[86] != 0x55
+
+    @property
+    def sn(self):
+        return self.config[0:4] + self.config[8:13]
+
+    
