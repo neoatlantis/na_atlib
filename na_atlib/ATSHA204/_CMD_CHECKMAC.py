@@ -5,8 +5,9 @@ from ..command import CommandPacket
 class CMD_CHECKMAC(CommandPacket):
 
     class OTPSelect(IntEnum):
-        NO_SELECT  = 0
-        SELECT     = 1
+        OTP_BYTES_11 = 0b11
+        OTP_BYTES_8  = 0b10
+        NO_OTP       = 0b00
 
     class SourceFlag(IntEnum):
         RAND       = 0
@@ -48,7 +49,7 @@ class CMD_CHECKMAC(CommandPacket):
         assert type(otherdata)  is bytes and len(otherdata)  == 13
 
         mode = (
-            ((mode_OTP_select & 1) << 5) |
+            ((mode_OTP_select & 0b11) << 4) |
             ((mode_source_flag & 1) << 2) |
             ((mode_SHA_first_source & 1) << 1) |
             (mode_SHA_second_source & 1)

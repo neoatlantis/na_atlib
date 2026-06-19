@@ -17,7 +17,7 @@ class CMD_WRITE(CommandPacket):
     class Zone(IntEnum):
         CONFIG = 0
         OTP    = 1
-        DATA   = 
+        DATA   = 2 
 
 
     def __init__(

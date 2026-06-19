@@ -6,7 +6,7 @@ from na_atlib.ATSHA204.routines.read_config import ConfigZoneReader
 from na_atlib.i2cbus import I2CBus
 from na_atlib.help_sha256 import sha256_pad
 import time
-
+import hashlib
 
 
 with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
@@ -93,3 +93,76 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
         CMD_NONCE(mode=CMD_NONCE.Mode.INPUT_WITHOUT_UPDATE_EEPROM, numin=b'0'*20)
     )
     print(ret.hex())
+
+    # Test MAC on slot 0
+    challenge = b'\x00'*32
+
+    ret = call_command(
+        "MAC on slot 0 with challenge",
+        CMD_MAC(
+            mode_SN_select   = CMD_MAC.SNSelect.NO_SN,
+            mode_OTP_select  = CMD_MAC.OTPSelect.NO_OTP,
+            mode_source_flag = CMD_MAC.SourceFlag.INPUT,
+            mode_SHA_first_source = CMD_MAC.SHAFirstSource.SLOT,
+            mode_SHA_second_source= CMD_MAC.SHASecondSource.CHALLENGE,
+            slot_id=0,
+            challenge=challenge,
+        )
+    )
+    print('IC returned  :', ret.hex())
+    print('We calculated:', hashlib.sha256(b''.join([
+        bytes.fromhex('0000A1AC57FF404E45D40401BD0ED3C673D3B7B82D85D9F313B55EDA3D940000'),
+        challenge,
+        b'\x08',
+        bytes([0b00000100]),
+        bytes([0x00, 0x00]),
+        b'\x00'*11,
+        b'\xee',
+        b'\x00'*4,
+        b'\x01\x23',
+        b'\x00'*2,
+    ])).digest().hex())
+
+
+    # Configure slot 2 & 3 using Write command
+    # -- slot 2 is auth key for slot 3, intended to copy slot 3 into tempkey
+    #    when slot 2 is authed.
+    # -- this requires slot 2 must have ReadKey == 0
+
+    slot2config = config_zone_reader.get_slotconfig(2)
+    slot3config = config_zone_reader.get_slotconfig(3)
+    slot2old = bytes(slot2config)
+    slot3old = bytes(slot3config)
+
+    print('Slot 2 Config HEX:', bytes(slot2config).hex())
+    print('Slot 2 Config - Readkey:', slot2config.read_key)
+    print('Slot 2 Config - CheckOnly', slot2config.check_only)
+
+    if slot2config.read_key != 0:
+        slot2config.read_key = 0
+
+    if slot2config.check_only != 1:
+        slot2config.check_only = 1
+    
+    print('Slot 2 Config HEX new:', bytes(slot2config).hex())
+
+    print('Slot 3 Config HEX:', bytes(slot3config).hex())
+
+    if slot3config.limited_use != 0:
+        slot23needupdate = True
+        slot3config.limited_use = 0
+
+    print('Slot 3 Config HEX new:', bytes(slot3config).hex())
+
+
+    if bytes(slot2config) != slot2old or bytes(slot3config) != slot3old:
+        call_command(
+            "Update slot 2 and 3 config",
+            CMD_WRITE(
+                zone = CMD_WRITE.Zone.CONFIG,
+                address = 0x06,
+                write_bytes = CMD_WRITE.WriteBytes.BYTES_4,
+                plaintext_data = bytes(slot2config) + bytes(slot3config),
+                encrypted = CMD_WRITE.Encrypted.CLEARTEXT
+            )
+        )
