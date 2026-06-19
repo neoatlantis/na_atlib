@@ -54,10 +54,14 @@ class CMD_CHECKMAC(CommandPacket):
             ((mode_SHA_first_source & 1) << 1) |
             (mode_SHA_second_source & 1)
         )
+        self.__mode = mode
 
         CommandPacket.__init__(self,
             0x28,                       # OpCode
-            mode, (0x00, slot_id & 0x0F),
+            mode, (slot_id & 0x0F, 0x00),
             data = clientchal+clientresp+otherdata,
             response_size = 1
         )
+
+    @property
+    def mode(self): return self.__mode

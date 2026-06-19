@@ -3,10 +3,14 @@
 from na_atlib.ATSHA204 import DEFAULT_I2C_ADDR as ATSHA204_DEFAULT_I2C_ADDR
 from na_atlib.ATSHA204.commands import *
 from na_atlib.ATSHA204.routines.read_config import ConfigZoneReader
+from na_atlib.ATSHA204.factory_keys import *
+
 from na_atlib.i2cbus import I2CBus
 from na_atlib.help_sha256 import sha256_pad
+
 import time
 import hashlib
+import os
 
 
 with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
@@ -29,7 +33,7 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
 
     call_command("Random", CMD_RANDOM(mode=CMD_RANDOM.Mode.NO_UPDATE_SEED))
 
-    # Now do SHA256 test
+    """# Now do SHA256 test
 
     test = b'abc'
     padded_test = sha256_pad(test)
@@ -42,7 +46,7 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
         "SHA",
         CMD_SHA(mode=CMD_SHA.Mode.COMPUTE, data=padded_test)
     )
-    assert hashed == bytes.fromhex('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad')
+    assert hashed == bytes.fromhex('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad')"""
 
     # Do some reads
     print("** CONFIG ZONE")
@@ -94,34 +98,43 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
     )
     print(ret.hex())
 
-    # Test MAC on slot 0
-    challenge = b'\x00'*32
+    # Test MAC on slot
 
-    ret = call_command(
-        "MAC on slot 0 with challenge",
-        CMD_MAC(
-            mode_SN_select   = CMD_MAC.SNSelect.NO_SN,
-            mode_OTP_select  = CMD_MAC.OTPSelect.NO_OTP,
-            mode_source_flag = CMD_MAC.SourceFlag.INPUT,
-            mode_SHA_first_source = CMD_MAC.SHAFirstSource.SLOT,
-            mode_SHA_second_source= CMD_MAC.SHASecondSource.CHALLENGE,
-            slot_id=0,
-            challenge=challenge,
-        )
-    )
-    print('IC returned  :', ret.hex())
-    print('We calculated:', hashlib.sha256(b''.join([
-        bytes.fromhex('0000A1AC57FF404E45D40401BD0ED3C673D3B7B82D85D9F313B55EDA3D940000'),
-        challenge,
-        b'\x08',
-        bytes([0b00000100]),
-        bytes([0x00, 0x00]),
-        b'\x00'*11,
-        b'\xee',
-        b'\x00'*4,
-        b'\x01\x23',
-        b'\x00'*2,
-    ])).digest().hex())
+    for slot_id in range(0, 16):
+        challenge = b'\x00'*32
+
+        try:
+            cmd = CMD_MAC(
+                mode_SN_select   = CMD_MAC.SNSelect.NO_SN,
+                mode_OTP_select  = CMD_MAC.OTPSelect.NO_OTP,
+                mode_source_flag = CMD_MAC.SourceFlag.INPUT,
+                mode_SHA_first_source = CMD_MAC.SHAFirstSource.SLOT,
+                mode_SHA_second_source= CMD_MAC.SHASecondSource.CHALLENGE,
+                slot_id=slot_id,
+                challenge=challenge,
+            )
+            ret = call_command("MAC on slot %d with challenge" % slot_id, cmd)
+                
+            print('IC returned  :', ret.hex())
+            print('We calculated:', hashlib.sha256(b''.join([
+                globals()["ATSHA204_FACTORY_KEY%d" % slot_id],
+                challenge,
+                b'\x08',
+                bytes([cmd.mode]),
+                bytes([slot_id & 0xFF, 0]),
+                b'\x00'*11,
+                b'\xee',
+                b'\x00'*4,
+                b'\x01\x23',
+                b'\x00'*2,
+            ])).digest().hex())
+        except Exception as e:
+            print("MAC on slot %d failed." % slot_id)
+
+        if slot_id % 3:
+            bus.idle()
+            bus.wake()
+
 
 
     # Configure slot 2 & 3 using Write command
@@ -129,31 +142,51 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
     #    when slot 2 is authed.
     # -- this requires slot 2 must have ReadKey == 0
 
+    slot0config = config_zone_reader.get_slotconfig(0)
+    slot1config = config_zone_reader.get_slotconfig(1)
+    slot0old, slot1old = bytes(slot0config), bytes(slot1config)
+
     slot2config = config_zone_reader.get_slotconfig(2)
     slot3config = config_zone_reader.get_slotconfig(3)
-    slot2old = bytes(slot2config)
-    slot3old = bytes(slot3config)
+    slot2old, slot3old = bytes(slot2config), bytes(slot3config)
 
-    print('Slot 2 Config HEX:', bytes(slot2config).hex())
-    print('Slot 2 Config - Readkey:', slot2config.read_key)
-    print('Slot 2 Config - CheckOnly', slot2config.check_only)
+    print('Slot 0 Config HEX:',        bytes(slot0config).hex())
+    print('Slot 0 Config - Readkey:',  slot0config.read_key)
+    print('Slot 0 Config - CheckOnly', slot0config.check_only)
 
-    if slot2config.read_key != 0:
-        slot2config.read_key = 0
 
-    if slot2config.check_only != 1:
-        slot2config.check_only = 1
+
+
+    slot0config.read_key = 0
+    slot0config.write_key = 0
+    slot1config.write_key = 0
+    slot1config.read_key = 0 # cannot be loaded
+
+
+
+    #if slot2config.check_only != 1:
+    #    slot2config.check_only = 1
     
-    print('Slot 2 Config HEX new:', bytes(slot2config).hex())
+    print('Slot 0 Config HEX new:', bytes(slot0config).hex())
 
-    print('Slot 3 Config HEX:', bytes(slot3config).hex())
+    """print('Slot 3 Config HEX:', bytes(slot3config).hex())
 
     if slot3config.limited_use != 0:
-        slot23needupdate = True
         slot3config.limited_use = 0
 
-    print('Slot 3 Config HEX new:', bytes(slot3config).hex())
+    print('Slot 3 Config HEX new:', bytes(slot3config).hex())"""
 
+    if bytes(slot0config) != slot0old or bytes(slot1config) != slot1old:
+        call_command(
+            "Update slot 0 and 1 config",
+            CMD_WRITE(
+                zone = CMD_WRITE.Zone.CONFIG,
+                address = 0x05,
+                write_bytes = CMD_WRITE.WriteBytes.BYTES_4,
+                plaintext_data = bytes(slot0config) + bytes(slot1config),
+                encrypted = CMD_WRITE.Encrypted.CLEARTEXT
+            )
+        )
 
     if bytes(slot2config) != slot2old or bytes(slot3config) != slot3old:
         call_command(
@@ -166,3 +199,87 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
                 encrypted = CMD_WRITE.Encrypted.CLEARTEXT
             )
         )
+
+    # Test a process:
+    # -- 1. Nonce and generate a tempkey using IC + Host randomness
+    # -- 2. CheckMac on Slot 2 to auth
+    # -- 3. Mac on Slot 3 to generate a determined output
+
+    print("****** Test on making an oracle response ******")
+
+    numin = os.urandom(20)
+    nonce_cmd = CMD_NONCE(
+        mode=CMD_NONCE.Mode.INPUT_WITHOUT_UPDATE_EEPROM,
+        numin=numin
+    )
+
+    randout = call_command("# 1. NONCE and generate some random key", nonce_cmd)
+    tempkey = nonce_cmd.get_tempkey(randout)
+
+    mode = 0x01
+    slot_id = 0x00
+
+    otherdata = b''.join([
+        b'\x08',                # Opcode
+        bytes([mode]),          # Mode
+        bytes([slot_id, 0]),    # SlotID,
+        b'\x00' * 9,            # OTP and SN not included
+    ])
+    assert len(otherdata) == 13
+
+    clientresp = hashlib.sha256(b''.join([
+        globals()["ATSHA204_FACTORY_KEY%d" % slot_id],
+        tempkey,
+        otherdata[0:4],
+        b'\x00'*8,     # zeros, not OTP
+        otherdata[4:7],
+        b'\xEE',
+        otherdata[7:11],
+        b'\x01\x23',
+        otherdata[11:13],
+    ])).digest()
+
+    cmd_checkmac = CMD_CHECKMAC(
+        mode_OTP_select = CMD_CHECKMAC.OTPSelect.NO_OTP,
+        mode_source_flag = CMD_CHECKMAC.SourceFlag.RAND,
+        mode_SHA_first_source = CMD_CHECKMAC.SHAFirstSource.SLOT,
+        mode_SHA_second_source = CMD_CHECKMAC.SHASecondSource.TEMPKEY,
+        slot_id = slot_id,
+        clientchal = b'\x00' * 32, # not used
+        clientresp = clientresp,
+        otherdata = otherdata
+    )
+
+    assert cmd_checkmac.mode == mode
+
+    ret = call_command("# 2. CHECKMAC on slot 0", cmd_checkmac)
+
+    challenge = b'\x00' * 32
+
+
+    cmd_oracle_response = CMD_MAC(
+        mode_SN_select   = CMD_MAC.SNSelect.NO_SN,
+        mode_OTP_select  = CMD_MAC.OTPSelect.NO_OTP,
+        mode_source_flag = CMD_MAC.SourceFlag.INPUT,
+        mode_SHA_first_source = CMD_MAC.SHAFirstSource.TEMPKEY,
+        mode_SHA_second_source= CMD_MAC.SHASecondSource.CHALLENGE,
+        slot_id=0x01,
+        challenge=challenge,
+    )
+    ret = call_command("# 3. Generate oracle response", cmd_oracle_response)
+    print(ret.hex())
+    print("mode", cmd_oracle_response.mode)
+
+    print('We calculated:', hashlib.sha256(b''.join([
+        globals()["ATSHA204_FACTORY_KEY1"],
+        challenge,
+        b'\x08',
+        bytes([cmd_oracle_response.mode]),
+        bytes([0x01, 0]),
+        b'\x00'*11,
+        b'\xee',
+        b'\x00'*4,
+        b'\x01\x23',
+        b'\x00'*2,
+    ])).digest().hex())
+    
