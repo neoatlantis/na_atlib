@@ -2,6 +2,7 @@
 
 import time
 from .._CMD_READ import CMD_READ
+from .slot_config import SlotConfig
 
 """
  |                            SN<0:3>                      | 01 23 d9 f9
@@ -73,4 +74,8 @@ class ConfigZoneReader:
     def sn(self):
         return self.config[0:4] + self.config[8:13]
 
-    
+    def get_slotconfig(self, slot_id: int):
+        assert type(slot_id) is int and (0 <= slot_id <= 15)
+        offset = 20 + slot_id * 2
+        value = self.config[offset:offset+2]
+        return SlotConfig(value[0] + (value[1]<<8))

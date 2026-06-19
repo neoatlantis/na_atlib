@@ -80,3 +80,16 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
     print("Device SN: %s" % config_zone_reader.sn.hex())
     print("Config zone locked: %s" % ("Yes" if config_zone_reader.config_locked else "No"))
     print("Data & OTP zone locked: %s" % ("Yes" if config_zone_reader.value_locked else "No"))
+
+    for i in range(0, 16):
+        slot_config = config_zone_reader.get_slotconfig(i)
+        print("Slot %2d config: %s" % (i, repr(slot_config)))
+
+
+    # Test nonce
+
+    ret = call_command(
+        "NONCE",
+        CMD_NONCE(mode=CMD_NONCE.Mode.INPUT_WITHOUT_UPDATE_EEPROM, numin=b'0'*20)
+    )
+    print(ret.hex())
