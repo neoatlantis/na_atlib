@@ -222,7 +222,20 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
     ])
     assert len(otherdata) == 13
 
-    clientresp = hashlib.sha256(b''.join([
+    clientresp = CMD_MAC(
+        mode_SN_select   = CMD_MAC.SNSelect.NO_SN,
+        mode_OTP_select  = CMD_MAC.OTPSelect.NO_OTP,
+        mode_source_flag = CMD_MAC.SourceFlag.RAND,
+        mode_SHA_first_source = CMD_MAC.SHAFirstSource.SLOT,
+        mode_SHA_second_source = CMD_MAC.SHASecondSource.TEMPKEY,
+        slot_id = slot_id,
+    ).calculate_response(
+        key=globals()["ATSHA204_FACTORY_KEY%d" % slot_id],
+        challenge=tempkey,
+        sn=b'\x01\x23'+b'\x00'*6+b'\xee',
+    )
+
+    """clientresp = hashlib.sha256(b''.join([
         globals()["ATSHA204_FACTORY_KEY%d" % slot_id],
         tempkey,
         otherdata[0:4],
@@ -232,7 +245,7 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
         otherdata[7:11],
         b'\x01\x23',
         otherdata[11:13],
-    ])).digest()
+    ])).digest()"""
 
     cmd_checkmac = CMD_CHECKMAC(
         mode_OTP_select = CMD_CHECKMAC.OTPSelect.NO_OTP,
