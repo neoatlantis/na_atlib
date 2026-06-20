@@ -7,14 +7,16 @@ class SlotConfig:
 
     def __repr__(self):
         yn = lambda x: "✅" if x else "❌"
-        return "< SlotConfig ReadKey=%2d WriteKey=%2d CheckOnly:%2s LimitedUse:%2s EncryptRead:%2s IsSecret:%2s %s\t%s >" % (
+        return "< SlotConfig ReadKey=%2d | WriteKey=%2d | CheckOnly:%2s | LimitedUse:%2s | EncryptRead:%2s | EncryptWrite:%2s | IsSecret:%2s | IsDerivable:%2s | %s\t%s >" % (
             self.read_key,
             self.write_key,
             yn(self.check_only),
             yn(self.limited_use),
             yn(self.encrypt_read),
+            yn(self.encrypt_write),
             yn(self.is_secret),
-            "No_DeriveKey" if not self.derive_key_allowed else (
+            yn(self.is_derivable),
+            "" if not self.is_derivable else (
                 "DeriveKey_From_" + (
                     "Parent" if self.derive_key_by_creation \
                     else "Self"
@@ -24,8 +26,8 @@ class SlotConfig:
                 )
             ),
             "No_Write" if not self.write_key_allowed else (
-                "Write_Cleartext" if not self.write_key_must_encrypt else\
-                "Write_Must_Encrypt"
+                "Write_Cleartext" if not self.encrypt_write else\
+                "Write_With_Encrypt"
             )
         )
 
@@ -80,13 +82,6 @@ class SlotConfig:
 
 
     @property
-    def derive_key_allowed(self): return bool(self.value & (1<<13))
-
-    @derive_key_allowed.setter
-    def derive_key_allowed(self, v): self.__set_value(1<<13, v << 13)
-
-
-    @property
     def derive_key_auth_required(self):
         return bool(self.value & (1<<15))
 
@@ -100,12 +95,20 @@ class SlotConfig:
     @derive_key_by_creation.setter
     def derive_key_by_creation(self, v): self.__set_value(1<<12, v<<12)
 
+    
+    @property
+    def is_derivable(self): return bool(self.value & (1<<13))
+
+    @is_derivable.setter
+    def is_derivable(self, v): self.__set_value(1<<13, v<<13)
+
+
 
     @property
-    def write_key_must_encrypt(self): return bool(self.value & (1<<14))
+    def encrypt_write(self): return bool(self.value & (1<<14))
 
-    @write_key_must_encrypt.setter
-    def write_key_must_encrypt(self, v): self.__set_value(1<<14, v<<14)
+    @encrypt_write.setter
+    def encrypt_write(self, v): self.__set_value(1<<14, v<<14)
 
 
     @property

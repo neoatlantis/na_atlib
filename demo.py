@@ -100,7 +100,7 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
 
     # Test MAC on slot
 
-    for slot_id in range(0, 16):
+    for slot_id in range(0, 4):
         challenge = b'\x00'*32
 
         try:
@@ -116,20 +116,14 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
             ret = call_command("MAC on slot %d with challenge" % slot_id, cmd)
                 
             print('IC returned  :', ret.hex())
-            print('We calculated:', hashlib.sha256(b''.join([
-                globals()["ATSHA204_FACTORY_KEY%d" % slot_id],
-                challenge,
-                b'\x08',
-                bytes([cmd.mode]),
-                bytes([slot_id & 0xFF, 0]),
-                b'\x00'*11,
-                b'\xee',
-                b'\x00'*4,
-                b'\x01\x23',
-                b'\x00'*2,
-            ])).digest().hex())
+            print('We calculated:', cmd.calculate_response(
+                key=globals()["ATSHA204_FACTORY_KEY%d" % slot_id],
+                challenge=challenge,
+                sn=config_zone_reader.sn,
+            ).hex())
         except Exception as e:
             print("MAC on slot %d failed." % slot_id)
+            print("Slot with CheckMac set cannot be used for doing Mac.")
 
         if slot_id % 3:
             bus.idle()
@@ -161,6 +155,7 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
     slot0config.write_key = 0
     slot1config.write_key = 0
     slot1config.read_key = 0 # cannot be loaded
+    slot3config.read_key = 0
 
 
 
@@ -217,7 +212,7 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
     tempkey = nonce_cmd.get_tempkey(randout)
 
     mode = 0x01
-    slot_id = 0x00
+    slot_id = 0x02
 
     otherdata = b''.join([
         b'\x08',                # Opcode
@@ -254,7 +249,7 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
 
     ret = call_command("# 2. CHECKMAC on slot 0", cmd_checkmac)
 
-    challenge = b'\x00' * 32
+    challenge = b'\xde\xad\xbe\xef' * 8
 
 
     cmd_oracle_response = CMD_MAC(
@@ -263,23 +258,18 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
         mode_source_flag = CMD_MAC.SourceFlag.INPUT,
         mode_SHA_first_source = CMD_MAC.SHAFirstSource.TEMPKEY,
         mode_SHA_second_source= CMD_MAC.SHASecondSource.CHALLENGE,
-        slot_id=0x01,
+        slot_id=0x0F, # slot_id is irrelevant here (we use copied slot key 
+                      # + challenge, no reading slot directly) but still has to
+                      # be between 0-15, otherwise calculation mismatch
         challenge=challenge,
     )
     ret = call_command("# 3. Generate oracle response", cmd_oracle_response)
     print(ret.hex())
     print("mode", cmd_oracle_response.mode)
 
-    print('We calculated:', hashlib.sha256(b''.join([
-        globals()["ATSHA204_FACTORY_KEY1"],
-        challenge,
-        b'\x08',
-        bytes([cmd_oracle_response.mode]),
-        bytes([0x01, 0]),
-        b'\x00'*11,
-        b'\xee',
-        b'\x00'*4,
-        b'\x01\x23',
-        b'\x00'*2,
-    ])).digest().hex())
+    print('We calculated:', cmd_oracle_response.calculate_response(
+        key=globals()["ATSHA204_FACTORY_KEY%d" % (slot_id+1)],
+        challenge=challenge,
+        sn=config_zone_reader.sn,
+    ).hex())
     

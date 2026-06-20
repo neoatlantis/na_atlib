@@ -26,9 +26,9 @@ class CMD_HMAC(CommandPacket):
 
         slot_id,
     ):
-        assert type(mode_SN_select)         is CMD_MAC.SNSelect
-        assert type(mode_OTP_select)        is CMD_MAC.OTPSelect
-        assert type(mode_source_flag)       is CMD_MAC.SourceFlag
+        assert type(mode_SN_select)         is CMD_HMAC.SNSelect
+        assert type(mode_OTP_select)        is CMD_HMAC.OTPSelect
+        assert type(mode_source_flag)       is CMD_HMAC.SourceFlag
 
         assert type(slot_id) is int
 
@@ -44,3 +44,6 @@ class CMD_HMAC(CommandPacket):
             mode, (slot_id & 0x0F, 0x00),
             response_size = 32
         )
+
+    @property
+    def mode(self): return self.__mode
