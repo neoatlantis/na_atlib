@@ -235,18 +235,6 @@ with I2CBus(1, ATSHA204_DEFAULT_I2C_ADDR) as bus:
         sn=b'\x01\x23'+b'\x00'*6+b'\xee',
     )
 
-    """clientresp = hashlib.sha256(b''.join([
-        globals()["ATSHA204_FACTORY_KEY%d" % slot_id],
-        tempkey,
-        otherdata[0:4],
-        b'\x00'*8,     # zeros, not OTP
-        otherdata[4:7],
-        b'\xEE',
-        otherdata[7:11],
-        b'\x01\x23',
-        otherdata[11:13],
-    ])).digest()"""
-
     cmd_checkmac = CMD_CHECKMAC(
         mode_OTP_select = CMD_CHECKMAC.OTPSelect.NO_OTP,
         mode_source_flag = CMD_CHECKMAC.SourceFlag.RAND,

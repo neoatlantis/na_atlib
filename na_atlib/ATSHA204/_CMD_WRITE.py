@@ -74,7 +74,7 @@ class CMD_WRITE(CommandPacket):
                 (param2 & 0xFF00)>>8,
                 0xEE,           # SN<8>
             ]),
-            b'\x01\x23',    # SN<0:1>
+            b'\x01\x23',        # SN<0:1>
             b'\x00'*25,
             plaintext_data,
         ]))
